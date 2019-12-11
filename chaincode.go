@@ -201,8 +201,12 @@ func (t *BankChaincode) updateUsr(stub shim.ChaincodeStubInterface, args []strin
 
 //Update permission
 //args[0] username
-//args[1] is isadmin
+//args[1] is isadmin （you can only input yes or no）
 func (t *BankChaincode) updatePerm(stub shim.ChaincodeStubInterface, args []string) (string, error) {
+	if args[0] != "yes" && args[0] != "no" {
+		return "", fmt.Errorf("You can only input yes or no!")
+	}
+
 	var info User
 	info.Username = args[0]
 	result, bl := getUsrInfo(stub, info.Username)
