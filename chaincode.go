@@ -1,4 +1,4 @@
-package main
+package chaincode
 
 import (
 	"encoding/json"
@@ -13,7 +13,7 @@ import (
 type User struct {
 	Username string `json:"Username"`
 	Password string `json:"Password"`
-	IsAdmin  string `json:"IsAdmin"`
+	//IsAdmin  string `json:"IsAdmin"`
 	IsOnline string `json:"IsOnline"`
 }
 
@@ -45,6 +45,14 @@ func init() {
 	paramLengthError["rollback"] = "Incorrect arguments. Expecting a debit account, credit account and a transaction id."
 	paramLength["transfer"] = 3
 	paramLengthError["transfer"] = "Incorrect arguments. Expecting a debit account, a credit account and a value"
+	paramLength["register"] = 1
+	paramLengthError["register"] = "Incorrect arguments. Expecting a username"
+	paramLength["alterPasswd"] = 3
+	paramLengthError["alterPasswd"] = "Incorrect arguments. Expecting a username , password and an alterPasswd "
+	paramLength["login"] = 1
+	paramLengthError["login"] = "Incorrect arguments. Expecting a debit account, a credit account and a value"
+	paramLength["loginOut"] = 1
+	paramLengthError["loginOut"] = "Incorrect arguments. Expecting a debit account, a credit account and a value"
 }
 
 func (t *BankChaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
@@ -100,6 +108,14 @@ func (t *BankChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 		result, err = query(stub, args)
 	case "rollback":
 		result, err = rollback(stub, args)
+	case "register":
+		result, err = register(stub, args)
+	case "alterPasswd":
+		result, err = alterPasswd(stub, args)
+	case "login":
+		result, err = login(stub, args)
+	case "loginOut":
+		result, err = loginOut(stub, args)
 	default:
 		return shim.Error("You do not have authority to get access to this function!")
 	}
@@ -121,6 +137,7 @@ func getUsrInfo(stub shim.ChaincodeStubInterface, username string) (User, bool) 
 	}
 
 	if b == nil {
+
 		return usr, false
 	}
 
@@ -150,7 +167,7 @@ func putUsr(stub shim.ChaincodeStubInterface, user User) ([]byte, bool) {
 
 //key is username ,User is value
 //args[0] is username
-func (t *BankChaincode) register(stub shim.ChaincodeStubInterface, args []string) (string, error) {
+func register(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 	var usr User
 	err := json.Unmarshal([]byte(args[0]), &usr)
 	if err != nil {
@@ -174,7 +191,7 @@ func (t *BankChaincode) register(stub shim.ChaincodeStubInterface, args []string
 //update user information
 //args:userObject
 //need two param
-func (t *BankChaincode) updateUsr(stub shim.ChaincodeStubInterface, args []string) (string, bool) {
+func updateUsr(stub shim.ChaincodeStubInterface, args []string) (string, bool) {
 	var info User
 	err := json.Unmarshal([]byte(args[0]), &info)
 	if err != nil {
@@ -186,7 +203,6 @@ func (t *BankChaincode) updateUsr(stub shim.ChaincodeStubInterface, args []strin
 		return "", false
 	}
 
-	result.IsAdmin = info.IsAdmin
 	result.IsOnline = info.IsOnline
 	result.Password = info.Password
 
@@ -202,31 +218,31 @@ func (t *BankChaincode) updateUsr(stub shim.ChaincodeStubInterface, args []strin
 //Update permission
 //args[0] username
 //args[1] is isadmin （you can only input yes or no）
-func (t *BankChaincode) updatePerm(stub shim.ChaincodeStubInterface, args []string) (string, error) {
-	if args[0] != "yes" && args[0] != "no" {
-		return "", fmt.Errorf("You can only input yes or no!")
-	}
-
-	var info User
-	info.Username = args[0]
-	result, bl := getUsrInfo(stub, info.Username)
-	if !bl {
-		return "", fmt.Errorf("Get userInfo failed!")
-	}
-	result.IsAdmin = args[1]
-
-	_, bl = putUsr(stub, result)
-	if !bl {
-		return "", fmt.Errorf("Put userObject failed!")
-	}
-
-	return fmt.Sprintf("Update the permission success!!"), nil
-}
+//func (t *BankChaincode) updatePerm(stub shim.ChaincodeStubInterface, args []string) (string, error) {
+//	if args[0] != "yes" && args[0] != "no" {
+//		return "", fmt.Errorf("You can only input yes or no!")
+//	}
+//
+//	var info User
+//	info.Username = args[0]
+//	result, bl := getUsrInfo(stub, info.Username)
+//	if !bl {
+//		return "", fmt.Errorf("Get userInfo failed!")
+//	}
+//	result.IsAdmin = args[1]
+//
+//	_, bl = putUsr(stub, result)
+//	if !bl {
+//		return "", fmt.Errorf("Put userObject failed!")
+//	}
+//
+//	return fmt.Sprintf("Update the permission success!!"), nil
+//}
 
 //args[0] username
 //args[1] oldpassword
 //args[2] newpassword
-func (t *BankChaincode) alterPasswd(stub shim.ChaincodeStubInterface, args []string) (string, error) {
+func alterPasswd(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 	var info User
 	info.Username = args[0]
 	result, bl := getUsrInfo(stub, info.Username)
@@ -249,7 +265,7 @@ func (t *BankChaincode) alterPasswd(stub shim.ChaincodeStubInterface, args []str
 
 //args[0] is username
 //args[1] is password
-func (t *BankChaincode) login(stub shim.ChaincodeStubInterface, args []string) (string, error) {
+func login(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 	var info User
 	info.Username = args[0]
 	result, bl := getUsrInfo(stub, info.Username)
@@ -271,7 +287,7 @@ func (t *BankChaincode) login(stub shim.ChaincodeStubInterface, args []string) (
 
 //args[0] is username
 //args[1] is password
-func (t *BankChaincode) loginOut(stub shim.ChaincodeStubInterface, args []string) (string, error) {
+func loginOut(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 	var info User
 	info.Username = args[0]
 	result, bl := getUsrInfo(stub, info.Username)
