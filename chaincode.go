@@ -45,13 +45,13 @@ func init() {
 	paramLengthError["rollback"] = "Incorrect arguments. Expecting a debit account, credit account and a transaction id."
 	paramLength["transfer"] = 3
 	paramLengthError["transfer"] = "Incorrect arguments. Expecting a debit account, a credit account and a value"
-	paramLength["register"] = 1
+	paramLength["register"] = 3
 	paramLengthError["register"] = "Incorrect arguments. Expecting a username"
 	paramLength["alterPasswd"] = 3
 	paramLengthError["alterPasswd"] = "Incorrect arguments. Expecting a username , password and an alterPasswd "
-	paramLength["login"] = 1
+	paramLength["login"] = 2
 	paramLengthError["login"] = "Incorrect arguments. Expecting a debit account, a credit account and a value"
-	paramLength["loginOut"] = 1
+	paramLength["loginOut"] = 2
 	paramLengthError["loginOut"] = "Incorrect arguments. Expecting a debit account, a credit account and a value"
 }
 
@@ -62,18 +62,18 @@ func (t *BankChaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	if function != "init" {
 		return shim.Error("The first parameter needs to be a string: \"init\"")
 	}
-	if len(args) != 2 {
+	if len(args) != 0 {
 		return shim.Error("Incorrect arguments. Expecting an account name and a balance value")
 	}
 
 	// Set up any variables or assets here by calling stub.PutState()
 	// We store the key and the value on the ledger
-
-	err := stub.PutState(args[0], []byte(args[1]))
-	if err != nil {
-		return shim.Error(fmt.Sprintf("Failed to create asset: %s", args[0]))
-	}
-	return shim.Success(nil)
+	//
+	//err := stub.PutState(args[0], []byte(args[1]))
+	//if err != nil {
+	//	return shim.Error(fmt.Sprintf("Failed to create asset: %s", args[0]))
+	//}
+	return shim.Success([]byte(fmt.Sprintf("Success to initialize!")))
 }
 
 func (t *BankChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
@@ -169,10 +169,15 @@ func putUsr(stub shim.ChaincodeStubInterface, user User) ([]byte, bool) {
 //args[0] is username
 func register(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 	var usr User
-	err := json.Unmarshal([]byte(args[0]), &usr)
-	if err != nil {
-		return "", fmt.Errorf("Deserialize failed!!")
-	}
+
+	usr.Username = args[0]
+	usr.Password = args[1]
+	usr.IsOnline = args[2]
+
+	//err := json.Unmarshal([]byte(args[0]), &usr)
+	//if err != nil {
+	//	return "", fmt.Errorf("Deserialize failed!!")
+	//}
 
 	//duplicate checking
 	_, exist := getUsrInfo(stub, usr.Username)
@@ -185,35 +190,41 @@ func register(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 		return "", fmt.Errorf("Failed to register user")
 	}
 
-	return fmt.Sprintf("Success to register!"), nil
+	err := stub.SetEvent(args[1], []byte{})
+	if err != nil {
+		return "", fmt.Errorf(err.Error())
+	}
+
+	return fmt.Sprintf("Success to register %s!", args[0]), nil
 }
 
+//
 //update user information
 //args:userObject
 //need two param
-func updateUsr(stub shim.ChaincodeStubInterface, args []string) (string, bool) {
-	var info User
-	err := json.Unmarshal([]byte(args[0]), &info)
-	if err != nil {
-		return "", false
-	}
-
-	result, bl := getUsrInfo(stub, info.Username)
-	if !bl {
-		return "", false
-	}
-
-	result.IsOnline = info.IsOnline
-	result.Password = info.Password
-
-	_, bl = putUsr(stub, result)
-	if !bl {
-		return "", false
-	}
-
-	return "", true
-
-}
+//func  updateUsr(stub shim.ChaincodeStubInterface, args []string) (string, bool) {
+//	var info User
+//	err := json.Unmarshal([]byte(args[0]), &info)
+//	if err != nil {
+//		return "", false
+//	}
+//
+//	result, bl := getUsrInfo(stub, info.Username)
+//	if !bl {
+//		return "", false
+//	}
+//
+//	result.IsOnline = info.IsOnline
+//	result.Password = info.Password
+//
+//	_, bl = putUsr(stub, result)
+//	if !bl {
+//		return "", false
+//	}
+//
+//	return "", true
+//
+//}
 
 //Update permission
 //args[0] username
@@ -253,6 +264,10 @@ func alterPasswd(stub shim.ChaincodeStubInterface, args []string) (string, error
 		return "", fmt.Errorf("Wrong password! You should input the true passwprd!")
 	}
 
+	if args[1] == args[2] {
+		return "", fmt.Errorf("Wrong password! You should alter the passwprd!")
+	}
+
 	result.Password = args[2]
 
 	_, bl = putUsr(stub, result)
@@ -275,13 +290,16 @@ func login(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 	if args[1] != result.Password {
 		return "", fmt.Errorf("Wrong password! You should input the true passwprd!")
 	}
+	if result.IsOnline == "Yes" {
 
+		return "", fmt.Errorf("You're logged in !")
+	}
 	result.IsOnline = "Yes"
+
 	_, bl = putUsr(stub, result)
 	if !bl {
 		return "", fmt.Errorf("Put userObject failed!")
 	}
-
 	return fmt.Sprintf("Log in success!!"), nil
 }
 
@@ -297,7 +315,9 @@ func loginOut(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 	if args[1] != result.Password {
 		return "", fmt.Errorf("Wrong password! You should input the true passwprd!")
 	}
-
+	if result.IsOnline == "No" {
+		return "", fmt.Errorf("You're not logged in!!")
+	}
 	result.IsOnline = "No"
 	_, bl = putUsr(stub, result)
 	if !bl {
@@ -526,12 +546,7 @@ func query(stub shim.ChaincodeStubInterface, args []string) (string, error) {
 		return "", fmt.Errorf(fmt.Sprintf("Cannot get by partial composite key!"))
 	}
 
-	err = it.Close()
-
-	if err != nil {
-		return "", fmt.Errorf("Close itIn failed!")
-	}
-
+	defer it.Close()
 	// result contains all the appropriate results
 	result := ""
 	header := "AccountAccociation | ID | Time | Amount"
