@@ -142,15 +142,15 @@ func TestChaincode(t *testing.T) {
 	res = stub.MockInvoke("1", [][]byte{[]byte("RollBack"), []byte("Lihongyao@Account"), []byte("Wangyiwen@Account"), []byte("1")})
 	fmt.Println("RollBack lihongyao wangyiwen 1 result: ", string(res.Payload))
 
-	//查询wangyiwen的余额，应该是0，  Account: Wangyiwen@Account; Balance: 0
+	//查询wangyiwen的余额，应该是0， Account: Wangyiwen@Account; Balance: 0,可实际输出 Account: Wangyiwen@Account; Balance: 10
 	res = stub.MockInvoke("1", [][]byte{[]byte("get"), []byte("Wangyiwen@Account")})
 	fmt.Println("get wangyiwen's account result: ", string(res.Payload))
 
-	//查询lihongyao的余额，应该是100，输出 Account: Lihongyao@Account; Balance: 100
+	//查询lihongyao的余额，应该是100，输出 Account: Lihongyao@Account; Balance: 100，可实际输出 Account: Wangyiwen@Account; Balance: 90
 	res = stub.MockInvoke("1", [][]byte{[]byte("get"), []byte("Lihongyao@Account")})
 	fmt.Println("get lihongyao's account result: ", string(res.Payload))
 
-	//回滚lihongyao和wangyiwen的事务id为1的交易，应该输出到error，无结果显示
+	//回滚lihongyao和changwen的事务id为1的交易，应该输出到error，无结果显示
 	res = stub.MockInvoke("1", [][]byte{[]byte("RollBack"), []byte("Lihongyao@Account"), []byte("Changwen@Account"), []byte("1")})
 	fmt.Println("RollBack lihongyao changwen 1 result: ", string(res.Payload))
 }
